@@ -117,6 +117,11 @@ class BaseEvent(ABC):
             return cypher
         return None  # pragma: no cover
 
+    @staticmethod
+    def check_crc_type(incoming: bytes) -> bool:
+        """Check if the CRC is binary or not."""
+        return len(incoming.split(b'"')[0]) == 7
+
     @classmethod
     def from_line(
         cls, incoming: str, accounts: dict[str, SIAAccount] | None = None
@@ -131,6 +136,8 @@ class BaseEvent(ABC):
             EventFormatError: If the event is not formatted according to SIA DC09 or ADM-CID.
 
         """
+        binary_crc = BaseEvent.check_crc_type(data)
+        incoming = str.strip(data.decode("ascii", errors="ignore"))
         line_match = MAIN_MATCHER.match(incoming)
         if not line_match:
             oh_event = OH_MATCHER.match(incoming)
@@ -139,6 +146,7 @@ class BaseEvent(ABC):
                 return OHEvent(
                     full_message=incoming,
                     msg_crc="",
+                    binary_crc=binary_crc,
                     message_type=MessageTypes.OH,
                     length=str(len(incoming)),
                     encrypted=False,
@@ -161,6 +169,7 @@ class BaseEvent(ABC):
         return SIAEvent(
             full_message=incoming[8:],
             msg_crc=main_content["crc"],
+            binary_crc=binary_crc,
             length=main_content["length"],
             encrypted=encrypted,
             message_type=main_content["message_type"],
@@ -191,14 +200,71 @@ class BaseEvent(ABC):
             return None
         crc = 0
         for letter in str.encode(msg):
-            temp = letter
             for _ in range(0, 8):
-                temp ^= crc & 1
+                letter ^= crc & 1
                 crc >>= 1
-                if (temp & 1) != 0:
+                if (letter & 1) != 0:
                     crc ^= 0xA001
-                temp >>= 1
-        return ("%x" % crc).upper().zfill(4)
+                letter >>= 1
+        return "%04X" % crc
+
+    def to_dict(self, **kwargs: Any) -> dict[str, Any]:
+        """Create a dict from the dataclass.
+
+        Kwargs are only there for legacy (after no longer using dataclasses_json),
+        so remove any other arguments from this function.
+        """
+        event = deepcopy(self)
+        event.sia_account = None
+        if event.timestamp is not None and isinstance(event.timestamp, datetime):
+            event.timestamp = event.timestamp.isoformat()
+        return asdict(event)
+
+    @classmethod
+    def from_dict(cls, event: dict[str, Any]) -> BaseEvent:
+        """Create a SIA Event from a dict."""
+        if "_content_parsed" in event:
+            event.pop("_content_parsed")
+        if "_encrypted_content_decrypted" in event:
+            event.pop("_encrypted_content_decrypted")
+        if "_adm_parsed" in event:
+            event.pop("_adm_parsed")
+        if "_sia_added" in event:
+            event.pop("_sia_added")
+        if "_xdata_parsed" in event:
+            event.pop("_xdata_parsed")
+        if "timestamp" in event and event["timestamp"] is not None:
+            event["timestamp"] = datetime.fromisoformat(event["timestamp"])
+        return cls(**event)
+
+    def to_dict(self, **kwargs: Any) -> dict[str, Any]:
+        """Create a dict from the dataclass.
+
+        Kwargs are only there for legacy (after no longer using dataclasses_json),
+        so remove any other arguments from this function.
+        """
+        event = deepcopy(self)
+        event.sia_account = None
+        if event.timestamp is not None and isinstance(event.timestamp, datetime):
+            event.timestamp = event.timestamp.isoformat()
+        return asdict(event)
+
+    @classmethod
+    def from_dict(cls, event: dict[str, Any]) -> BaseEvent:
+        """Create a SIA Event from a dict."""
+        if "_content_parsed" in event:
+            event.pop("_content_parsed")
+        if "_encrypted_content_decrypted" in event:
+            event.pop("_encrypted_content_decrypted")
+        if "_adm_parsed" in event:
+            event.pop("_adm_parsed")
+        if "_sia_added" in event:
+            event.pop("_sia_added")
+        if "_xdata_parsed" in event:
+            event.pop("_xdata_parsed")
+        if "timestamp" in event and event["timestamp"] is not None:
+            event["timestamp"] = datetime.fromisoformat(event["timestamp"])
+        return cls(**event)
 
     def to_dict(self, **kwargs: Any) -> dict[str, Any]:
         """Create a dict from the dataclass.
@@ -244,6 +310,10 @@ class SIAEvent(BaseEvent):
         # Calculate the CRC of the message.
         if not self.calc_crc:
             self.calc_crc = self._crc_calc(self.full_message)
+            if self.calc_crc is not None:
+                if self.binary_crc:
+                    calc_crc = int(self.calc_crc, 16)
+                    self.calc_crc = str(bytes([calc_crc >> 16, calc_crc & 0xFF]))
         # If there is encrypted content and a key, decrypt
         if self.encrypted_content:
             if not self.sia_account or not self.sia_account.encrypted:
@@ -476,6 +546,7 @@ Length: {self.length}, \
 Sequence: {self.sequence}, \
 CRC: {self.msg_crc}, \
 Calc CRC: {self.calc_crc}, \
+Binary CRC: {self.binary_crc}, \
 Encrypted Content: {self.encrypted_content}, \
 Full Message: {self.full_message}."
 
