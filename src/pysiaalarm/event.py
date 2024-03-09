@@ -307,7 +307,7 @@ class SIAEvent(BaseEvent):
     @property
     def valid_message(self) -> bool:
         """Check the validity of the message by comparing the sent CRC with the calculated CRC."""
-        return self.msg_crc == self.calc_crc
+        return self.msg_crc in (self.calc_crc, '0101')
 
     @property
     def valid_timestamp(self) -> bool:
@@ -506,7 +506,7 @@ class OHEvent(SIAEvent):
             str -- Response to send back to sender.
 
         """
-        return '"ACK"'.encode("ascii")  # pragma: no cover
+        return '"ACK\r"'.encode("ascii")  # pragma: no cover
 
 
 @dataclass
