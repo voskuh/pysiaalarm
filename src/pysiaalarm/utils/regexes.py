@@ -8,12 +8,14 @@ from .enums import MessageTypes
 # pylint: disable=invalid-name
 
 # sample OH: SR0001L0001    006969XX    [ID00000000]
+# sample other OH: SR0001L0001    006969XX    \x00\x00\x00\x00
 oh_regex = r"""
 ^S
 (?:R)(?P<receiver>(?<=R)(?:\d{4}))
 (?:L)(?P<line>(?<=L)(?:\d{4}))
-\s+(?P<account>\w{8})\s+
-\[(?P<id>\w+)\]$
+\s+(?P<account>\w{6})XX\s+
+(\[(?P<id>\w+)\])?
+(\x00+)?$
 """
 OH_MATCHER = re.compile(oh_regex, re.X)
 

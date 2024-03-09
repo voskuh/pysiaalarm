@@ -24,6 +24,7 @@ class CommunicationsProtocol(AutoName):
 
     TCP = auto()
     UDP = auto()
+    OH = auto()
 
 
 class ResponseType(AutoName):

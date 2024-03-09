@@ -13,7 +13,7 @@ from ..account import SIAAccount
 from ..base_client import BaseSIAClient
 from ..event import SIAEvent
 from ..utils import CommunicationsProtocol
-from .server import SIAServerTCP, SIAServerUDP
+from .server import SIAServerTCP, SIAServerUDP, SIAServerOH
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class SIAClient(BaseSIAClient):
             port {int} -- The port the server listens to.
             accounts {List[SIAAccount]} -- List of SIA Accounts to add.
             function {Callable[[SIAEvent], Awaitable[None]]} -- The async function that gets called for each event.  # pylint: disable=line-too-long
-            protocol {CommunicationsProtocol Enum} -- CommunicationsProtocol to use, TCP or UDP.
+            protocol {CommunicationsProtocol Enum} -- CommunicationsProtocol to use, TCP, UDP OR OH.
 
         """
         if not asyncio.iscoroutinefunction(function):
@@ -133,6 +133,43 @@ class SIAClientTCP(SIAClient):
     async def async_stop(self) -> None:
         """Stop the asynchronous SIA TCP server."""
         _LOGGER.debug("Stopping SIA.")
+        self.sia_server.shutdown_flag = True
+        await asyncio.gather(self.task)  # type: ignore
+
+
+class SIAClientOH(SIAClient):
+    """OH subclass."""
+
+    protocol = CommunicationsProtocol.OH
+
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        accounts: list[SIAAccount],
+        function: Callable[[SIAEvent], Awaitable[None]],
+        **kwargs: Any,
+    ) -> None:
+        """Create the OH SIA Client object."""
+        super().__init__(host, port, accounts, function)
+        self.task: asyncio.Task | None = None
+        self.sia_server: SIAServerOH = SIAServerOH(
+            self._accounts, self._func, self._counts
+        )
+
+    async def async_start(self, **kwargs: Any) -> None:
+        """Start the asynchronous SIA OH server.
+        The rest of the arguments are passed directly to asyncio.start_server().
+        """
+        _LOGGER.debug("Starting OH-SIA.")
+        coro = asyncio.start_server(
+            self.sia_server.handle_line, self._host, self._port, **kwargs
+        )
+        self.task = asyncio.create_task(coro)
+
+    async def async_stop(self) -> None:
+        """Stop the asynchronous SIA TCP server."""
+        _LOGGER.debug("Stopping OH-SIA.")
         self.sia_server.shutdown_flag = True
         await asyncio.gather(self.task)  # type: ignore
 
