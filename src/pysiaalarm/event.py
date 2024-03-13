@@ -506,7 +506,9 @@ class OHEvent(SIAEvent):
             str -- Response to send back to sender.
 
         """
-        return '"ACK\r"'.encode("ascii")  # pragma: no cover
+        response_type = self.response
+        
+        return f'"{response_type.value}"'.encode("ascii")  # pragma: no cover
 
 
 @dataclass
