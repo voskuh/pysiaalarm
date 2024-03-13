@@ -108,6 +108,7 @@ class SIAServerOH(BaseSIAServer):
             if not event:
                 continue
             response = event.create_response()
+            _LOGGER.debug("Response send to alarm system: %s", response)
             response = oh.encrypt_data(response)
             writer.write(response)
             await writer.drain()
