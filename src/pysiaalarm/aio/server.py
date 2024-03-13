@@ -92,11 +92,12 @@ class SIAServerOH(BaseSIAServer):
         """
         oh = OsborneHoffman()
         scrambled_key = oh.get_scrambled_key()
-        writer.write(scrambled_key)
+        
         await writer.drain()
 
         while True and not self.shutdown_flag:  # pragma: no cover  # type: ignore
             try:
+                writer.write(scrambled_key)
                 data = await reader.read(1000)
             except ConnectionResetError:
                 break
