@@ -33,6 +33,7 @@ main_regex = r"""
 """
 MAIN_MATCHER = re.compile(main_regex, re.X)
 
+# sample: #072538|Nri01/CL003*''NM
 sia_content_regex = r"""
 [#]?(?P<account>[A-Fa-f0-9]{3,16})?
 [|]?
@@ -51,6 +52,23 @@ SIA_CONTENT_MATCHER = re.compile(sia_content_regex, re.X)
 
 encr_sia_content_regex = r"""(?:[^\|\[\]]*)[|]?"""
 ENCR_SIA_CONTENT_MATCHER = re.compile(encr_sia_content_regex + sia_content_regex, re.X)
+
+# sample: #696900|NRP000*\'Paneel\'NM
+sia_content_V3_regex = r"""
+[#]?(?P<account>[A-Fa-f0-9]{3,16})?
+[|]?
+[N]?
+(?:ti)?(?:(?<=ti)(?P<ti>\d{2}:\d{2}))?\/?
+(?:id)?(?:(?<=id)(?P<id>\d*))?\/?
+(?:ri)?(?:(?<=ri)(?P<ri>\d*))?\/?
+(?P<code>[a-zA-Z]{2})?
+(?P<message>.[^\[\]]*)?
+[\]]
+(?:\[(?:(?<=\[)(?P<xdata>.*)(?=\]))\])?
+[_]?
+(?P<timestamp>[0-9:,-]*)?
+"""
+SIA_CONTENT_V3_MATCHER = re.compile(sia_content_V3_regex, re.X)
 
 adm_content_regex = r"""
 [#]?(?P<account>[A-F0-9]{3,16})?
@@ -78,4 +96,6 @@ def _get_matcher(
     """Extract the content using the different regexes."""
     if message_type == MessageTypes.ADMCID:
         return ENCR_ADM_CONTENT_MATCHER if encrypted else ADM_CONTENT_MATCHER
+    if message_type == "v3":
+        return SIA_CONTENT_V3_MATCHER
     return ENCR_SIA_CONTENT_MATCHER if encrypted else SIA_CONTENT_MATCHER
