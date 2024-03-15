@@ -100,6 +100,7 @@ class SIAServerOH(BaseSIAServer):
                 writer.write(scrambled_key)
                 await writer.drain()
                 _LOGGER.debug("Receive data...")
+
                 data = await reader.read(1000)
                 _LOGGER.debug("Data received: %s", data)
             except ConnectionResetError:
