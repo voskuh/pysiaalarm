@@ -403,11 +403,17 @@ class SIAEvent(BaseEvent):
             return
         matcher = _get_matcher(self.message_type, self.encrypted)
         matches = matcher.match(self.content)
+
         if not matches:
-            raise EventFormatError(
-                f"Parse content: no matches found in {self.content}, using matcher: {matcher}"
+            matcherV3 = _get_matcher("v3", self.encrypted)
+            matchesV3 = matcherV3.match(self.content)
+            if not matchesV3:
+                raise EventFormatError(
+                    f"Parse content: no matches found in {self.content}, using matcher: {matcher} and {matcherV3}"
             )
-        content = matches.groupdict()
+            content = matchesV3.groupdict()
+        else:
+            content = matches.groupdict()
         _LOGGER.debug("Content matches: %s", content)
         # Parse specific fields per message type
         if self.message_type == MessageTypes.ADMCID:
@@ -507,9 +513,12 @@ class OHEvent(SIAEvent):
 
         """
         response_type = self.response
-        
-        return f'"{response_type.value}"'.encode("ascii")  # pragma: no cover
 
+        #res = f'"{response_type.value}"{self.sequence}{self.receiver}{self.line}#{self.account}[]'
+        res = f'"{response_type.value}"'
+        header = ("%04x" % len(res)).upper()
+        new_crc = self._crc_calc(res)
+        return f"\n{new_crc}{header}{res}\r".encode("ascii")
 
 @dataclass
 class NAKEvent(BaseEvent):

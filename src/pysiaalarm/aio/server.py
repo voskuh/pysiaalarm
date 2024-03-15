@@ -92,12 +92,17 @@ class SIAServerOH(BaseSIAServer):
         """
         oh = OsborneHoffman()
         scrambled_key = oh.get_scrambled_key()
-        writer.write(scrambled_key)
-        await writer.drain()
 
+        _LOGGER.debug("Handle line started")
         while True and not self.shutdown_flag:  # pragma: no cover  # type: ignore
             try:
+                _LOGGER.debug("Send scrambled key")
+                writer.write(scrambled_key)
+                await writer.drain()
+                _LOGGER.debug("Receive data...")
+
                 data = await reader.read(1000)
+                _LOGGER.debug("Data received: %s", data)
             except ConnectionResetError:
                 break
             if data == EMPTY_BYTES or reader.at_eof():
@@ -116,6 +121,7 @@ class SIAServerOH(BaseSIAServer):
             await self.async_func_wrap(event)
 
         writer.close()
+        _LOGGER.debug("Handle line finished")
 
 class SIAServerUDP(BaseSIAServer, asyncio.DatagramProtocol):
     """Class for SIA UDP Server Async."""
