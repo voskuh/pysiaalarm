@@ -120,7 +120,6 @@ class SIAServerOH(BaseSIAServer):
             await self.async_func_wrap(event)
 
         writer.close()
-        await writer.wait_closed()
         _LOGGER.debug("Handle line finished")
 
 class SIAServerUDP(BaseSIAServer, asyncio.DatagramProtocol):
