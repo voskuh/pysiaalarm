@@ -68,7 +68,7 @@ sia_content_V3_regex = r"""
 [\]]
 (?:\[(?:(?<=\[)(?P<xdata>.*)(?=\]))\])?
 [_]?
-(?P<timestamp>[0-9:,-]*)?
+(?P<timestamp>[0-9:,-]{10,})?
 """
 SIA_CONTENT_V3_MATCHER = re.compile(sia_content_V3_regex, re.X)
 
